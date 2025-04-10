@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>インシデント報告フィールド変換ツール</title>
+  <style>
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      color: #2c3e50;
+    }
+    .container {
+      display: flex;
+      gap: 20px;
+    }
+    .input-panel, .output-panel {
+      flex: 1;
+      background-color: #f9f9f9;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .input-group {
+      margin-bottom: 20px;
+    }
+    .input-panel h2, .output-panel h2 {
+      margin-top: 0;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    input[type="file"] {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    button {
+      background-color: #3498db;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-right: 10px;
+    }
+    button:hover {
+      background-color: #2980b9;
+    }
+    button:disabled {
+      background-color: #95a5a6;
+      cursor: not-allowed;
+    }
+    #output {
+      white-space: pre-wrap;
+      background-color: #f5f5f5;
+      border: 1px solid #ddd;
+      padding: 15px;
+      border-radius: 4px;
+      overflow: auto;
+      font-family: monospace;
+      height: 600px;
+    }
+    .btn-group {
+      display: flex;
+      margin-top: 15px;
+    }
+    .field-list {
+      margin-top: 20px;
+    }
+    .field-item {
+      background-color: white;
+      border-left: 4px solid #3498db;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    .description {
+      background-color: #ecf0f1;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .tabs {
+      display: flex;
+      margin-bottom: 20px;
+    }
+    .tab {
+      padding: 10px 20px;
+      background-color: #eee;
+      cursor: pointer;
+      border: 1px solid #ddd;
+      border-bottom: none;
+      border-radius: 4px 4px 0 0;
+    }
+    .tab.active {
+      background-color: #f9f9f9;
+      font-weight: bold;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .gas-api-section {
+      margin-top: 20px;
+      padding: 15px;
+      background-color: #e8f4f8;
+      border-radius: 8px;
+      border: 1px solid #b6d7e4;
+    }
+    .form-field {
+      margin-bottom: 15px;
+    }
+    .form-field label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    .form-field input[type="text"],
+    .form-field textarea,
+    .form-field select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .form-field textarea {
+      min-height: 100px;
+    }
+    .radio-group {
+      display: flex;
+      flex-direction: column;
+    }
+    .radio-option {
+      margin-bottom: 5px;
+    }
+    .required {
+      color: red;
+    }
+    .submit-btn {
+      background-color: #27ae60;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-top: 15px;
+    }
+    .submit-btn:hover {
+      background-color: #219653;
+    }
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(0, 0, 0, 0.1);
+      border-radius: 50%;
+      border-top-color: #3498db;
+      animation: spin 1s ease-in-out infinite;
+      margin-left: 10px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <h1>インシデント報告フィールド変換ツール</h1>
+  
+  <div class="description">
+    <p>このツールは、インシデント報告用のCSVマスターファイルをfield_nameごとにJSONに変換します。</p>
+    <p>CSVファイルのフォーマット (列名): <br>
+    <code>category_value, category_label, parent_value, parent_label, child_value, child_label, grandchild_value, grandchild_label, field_name, field_type, field_label, required, placeholder, options_json, visible_if, display_order</code></p>
+  </div>
+  
+  <div class="container">
+    <div class="input-panel">
+      <h2>入力</h2>
+      <div class="input-group">
+        <label for="csvFile">CSVマスターファイル:</label>
+        <input type="file" id="csvFile" accept=".csv">
+      </div>
+      
+      <div class="btn-group">
+        <button id="convertBtn">変換</button>
+        <button id="downloadBtn" disabled>JSONをダウンロード</button>
+      </div>
+      
+      <div class="gas-api-section">
+        <h3>Google Apps Script連携</h3>
+        <div class="input-group">
+          <label for="gasApiUrl">GAS Web APIのURL:</label>
+          <input type="text" id="gasApiUrl" placeholder="例: https://script.google.com/macros/s/...">
+        </div>
+        <button id="fetchFromGAS">スプレッドシートから取得</button>
+      </div>
+      
+      <div class="field-list" id="fieldList">
+        <h3>検出されたフィールド</h3>
+        <p>CSVファイルを選択して変換すると、ここにフィールドのリストが表示されます。</p>
+      </div>
+    </div>
+    
+    <div class="output-panel">
+      <h2>出力</h2>
+      
+      <div class="tabs">
+        <div class="tab active" data-tab="json">JSONプレビュー</div>
+        <div class="tab" data-tab="structure">構造説明</div>
+        <div class="tab" data-tab="form">フォームプレビュー</div>
+      </div>
+      
+      <div class="tab-content active" id="json-tab">
+        <div id="output">
+          // ここにJSONが表示されます
+        </div>
+      </div>
+      
+      <div class="tab-content" id="structure-tab">
+        <div class="field-item">
+          <h3>生成されるJSONの構造</h3>
+          <pre>
+{
+  "field_name1": {              // フィールド名
+    "field_name": "field_name1",
+    "field_type": "text",       // テキスト、テキストエリア、セレクトなど
+    "field_label": "表示名",
+    "required": true,           // 必須かどうか
+    "placeholder": "例: 入力例",
+    "options": [],              // セレクトなどの選択肢
+    "visible_if": "条件",        // 表示条件
+    "display_order": 1,         // 表示順
+    "categories": [             // カテゴリー階層
+      {
+        "value": "1",
+        "label": "カテゴリーA",
+        "parents": [
+          {
+            "value": "1001",
+            "label": "親カテゴリー1",
+            "children": [
+              {
+                "value": "1001001",
+                "label": "子カテゴリー1",
+                "grandchildren": [
+                  {
+                    "value": "1001001001",
+                    "label": "孫カテゴリー1"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "field_name2": {
+    // 同様の構造
+  }
+}
+          </pre>
+        </div>
+      </div>
+      
+      <div class="tab-content" id="form-tab">
+        <button id="generateForm">フォームを生成</button>
+        <div id="form-container" class="form-container">
+          <!-- 動的に生成されるフォームがここに表示されます -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * CSVをパースする関数
+     * @param {string} csvString - CSVデータの文字列
+     * @returns {Array} - パースされたオブジェクトの配列
+     */
+    function parseCSV(csvString) {
+      // CSVを行ごとに分割
+      const rows = csvString.trim().split(/\r?\n/);
+      
+      // ヘッダー行（列名）を取得
+      const headers = rows[0].split(',').map(header => header.trim());
+      
+      // 結果を格納する配列
+      const result = [];
+      
+      // 2行目からデータを処理（ヘッダーをスキップ）
+      for (let i = 1; i < rows.length; i++) {
+        // 空行をスキップ
+        if (rows[i].trim() === '') continue;
+        
+        // CSVの行を解析（引用符で囲まれたカンマを処理）
+        const values = parseCSVRow(rows[i]);
+        const entry = {};
+        
+        // 各列の値をオブジェクトに追加
+        for (let j = 0; j < headers.length; j++) {
+          let value = values[j] ? values[j].trim() : '';
+          
+          // 特定のフィールドに対する型変換
+          if (headers[j] === 'required') {
+            value = value.toLowerCase() === 'true';
+          } else if (headers[j] === 'options_json' && value) {
+            try {
+              // JSON文字列をパース
+              value = JSON.parse(value);
+            } catch (e) {
+              console.warn(`Failed to parse JSON for options_json: ${value}`);
+            }
+          }
+          
+          entry[headers[j]] = value;
+        }
+        
+        result.push(entry);
+      }
+      
+      return result;
+    }
+    
+    /**
+     * CSVの1行をパースする関数（引用符で囲まれたカンマを処理）
+     * @param {string} row - CSVの1行
+     * @returns {Array} - フィールド値の配列
+     */
+    function parseCSVRow(row) {
+      const result = [];
+      let inQuotes = false;
+      let currentValue = '';
+      
+      for (let i = 0; i < row.length; i++) {
+        const char = row[i];
+        
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          result.push(currentValue);
+          currentValue = '';
+        } else {
+          currentValue += char;
+        }
+      }
+      
+      // 最後の値を追加
+      result.push(currentValue);
+      
+      return result;
+    }
+    
+    /**
+     * field_nameごとにグループ化する関数
+     * @param {Array} data - パースされたCSVデータ
+     * @returns {Object} - field_nameごとにグループ化されたデータ
+     */
+    function groupByFieldName(data) {
+      const grouped = {};
+      
+      data.forEach(row => {
+        const fieldName = row.field_name;
+        
+        if (!grouped[fieldName]) {
+          grouped[fieldName] = [];
+        }
+        
+        grouped[fieldName].push(row);
+      });
+      
+      return grouped;
+    }
+    
+    /**
+     * field_nameごとのJSONを生成する関数
+     * @param {Array} data - パースされたCSVデータ
+     * @returns {Object} - field_nameごとのJSON
+     */
+    function generateFieldNameJson(data) {
+      const grouped = groupByFieldName(data);
+      const result = {};
+      
+      for (const fieldName in grouped) {
+        const fieldData = grouped[fieldName];
+        
+        // フィールド定義の基本情報（最初のエントリから取得）
+        const fieldDefinition = {
+          field_name: fieldName,
+          field_type: fieldData[0].field_type,
+          field_label: fieldData[0].field_label,
+          required: fieldData[0].required,
+          placeholder: fieldData[0].placeholder,
+          options: fieldData[0].options_json,
+          visible_if: fieldData[0].visible_if,
+          display_order: parseInt(fieldData[0].display_order) || 999,
+          categories: []
+        };
+        
+        // カテゴリー情報を整理
+        const categoryMap = {};
+        
+        fieldData.forEach(item => {
+          // カテゴリーレベル
+          const catKey = item.category_value;
+          if (!categoryMap[catKey]) {
+            categoryMap[catKey] = {
+              value: item.category_value,
+              label: item.category_label,
+              parents: {}
+            };
+          }
+          
+          // 親レベル
+          const parentKey = item.parent_value;
+          if (parentKey && !categoryMap[catKey].parents[parentKey]) {
+            categoryMap[catKey].parents[parentKey] = {
+              value: item.parent_value,
+              label: item.parent_label,
+              children: {}
+            };
+          }
+          
+          // 子レベル
+          const childKey = item.child_value;
+          if (childKey && parentKey && !categoryMap[catKey].parents[parentKey].children[childKey]) {
+            categoryMap[catKey].parents[parentKey].children[childKey] = {
+              value: item.child_value,
+              label: item.child_label,
+              grandchildren: {}
+            };
+          }
+          
+          // 孫レベル
+          if (childKey && parentKey && item.grandchild_value) {
+            const grandchildKey = item.grandchild_value;
+            categoryMap[catKey].parents[parentKey].children[childKey].grandchildren[grandchildKey] = {
+              value: item.grandchild_value,
+              label: item.grandchild_label
+            };
+          }
+        });
+        
+        // ネストされたオブジェクトを配列に変換
+        Object.values(categoryMap).forEach(category => {
+          const categoryObj = {
+            value: category.value,
+            label: category.label,
+            parents: []
+          };
+          
+          Object.values(category.parents).forEach(parent => {
+            const parentObj = {
+              value: parent.value,
+              label: parent.label,
+              children: []
+            };
+            
+            Object.values(parent.children).forEach(child => {
+              const childObj = {
+                value: child.value,
+                label: child.label,
+                grandchildren: []
+              };
+              
+              Object.values(child.grandchildren).forEach(grandchild => {
+                childObj.grandchildren.push({
+                  value: grandchild.value,
+                  label: grandchild.label
+                });
+              });
+              
+              parentObj.children.push(childObj);
+            });
+            
+            categoryObj.parents.push(parentObj);
+          });
+          
+          fieldDefinition.categories.push(categoryObj);
+        });
+        
+        result[fieldName] = fieldDefinition;
+      }
+      
+      return result;
+    }
+    
+    /**
+     * JSONをファイルとしてダウンロードする関数
+     * @param {Object} jsonData - ダウンロードするJSONデータ
+     * @param {string} fileName - ファイル名
+     */
+    function downloadJson(jsonData, fileName) {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(jsonData, null, 2));
+      const downloadAnchorNode = document.createElement('a');
+      downloadAnchorNode.setAttribute("href", dataStr);
+      downloadAnchorNode.setAttribute("download", fileName);
+      document.body.appendChild(downloadAnchorNode);
+      downloadAnchorNode.click();
+      downloadAnchorNode.remove();
+    }
+    
+    /**
+     * GAS APIからデータを取得する関数
+     * @returns {Promise<Object>} - 取得したJSONデータ
+     */
+    async function fetchDataFromGAS() {
+      const gasApiUrl = document.getElementById('gasApiUrl').value;
+      
+      if (!gasApiUrl) {
+        alert('GAS Web APIのURLを入力してください');
+        return null;
+      }
+      
+      try {
+        const response = await fetch(gasApiUrl);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        return data;
+      } catch (error) {
+        console.error('GAS APIとの通信エラー:', error);
+        alert(`エラー: ${error.message}`);
+        return null;
+      }
+    }
+    
+    /**
+     * フォームを生成する関数
+     * @param {Object} fieldsData - フィールド定義データ
+     */
+    function generateIncidentForm(fieldsData) {
+      const formContainer = document.getElementById('form-container');
+      formContainer.innerHTML = '';
+      
+      // フォーム要素を作成
+      const form = document.createElement('form');
+      form.id = 'incident-form';
+      
+      // フィールドを表示順でソート
+      const sortedFields = Object.values(fieldsData).sort((a, b) => 
+        (a.display_order || 999) - (b.display_order || 999)
+      );
+      
+      // フォーム要素を生成
+      sortedFields.forEach(field => {
+        const fieldDiv = document.createElement('div');
+        fieldDiv.className = 'form-field';
+        
+        // ラベルを作成
+        const label = document.createElement('label');
+        label.htmlFor = field.field_name;
+        label.textContent = field.field_label;
+        if (field.required) {
+          const requiredMark = document.createElement('span');
+          requiredMark.className = 'required';
+          requiredMark.textContent = ' *';
+          label.appendChild(requiredMark);
+        }
+        fieldDiv.appendChild(label);
+        
+        // フィールドタイプに応じて入力要素を作成
+        let inputElement;
+        switch (field.field_type) {
+          case 'text':
+            inputElement = document.createElement('input');
+            inputElement.type = 'text';
+            inputElement.id = field.field_name;
+            inputElement.name = field.field_name;
+            inputElement.placeholder = field.placeholder || '';
+            break;
+          case 'textarea':
+            inputElement = document.createElement('textarea');
+            inputElement.id = field.field_name;
+            inputElement.name = field.field_name;
+            inputElement.placeholder = field.placeholder || '';
+            break;
+          case 'select':
+            inputElement = document.createElement('select');
+            inputElement.id = field.field_name;
+            inputElement.name = field.field_name;
+            
+            // 空のオプションを追加
+            const emptyOption = document.createElement('option');
+            emptyOption.value = '';
+            emptyOption.textContent = '選択してください';
+            inputElement.appendChild(emptyOption);
+            
+            // 選択肢を追加
+            if (Array.isArray(field.options)) {
+              field.options.forEach(option => {
+                const optionElement = document.createElement('option');
+                optionElement.value = option;
+                optionElement.textContent = option;
+                inputElement.appendChild(optionElement);
+              });
+            }
+            break;
+          case 'radio':
+            inputElement = document.createElement('div');
+            inputElement.className = 'radio-group';
+            
+            if (Array.isArray(field.options)) {
+              field.options.forEach((option, index) => {
+                const radioDiv = document.createElement('div');
+                radioDiv.className = 'radio-option';
+                
+                const radioInput = document.createElement('input');
+                radioInput.type = 'radio';
+                radioInput.id = `${field.field_name}_${index}`;
+                radioInput.name = field.field_name;
+                radioInput.value = option;
+                
+                const radioLabel = document.createElement('label');
+                radioLabel.htmlFor = `${field.field_name}_${index}`;
+                radioLabel.textContent = option;
+                
+                radioDiv.appendChild(radioInput);
+                radioDiv.appendChild(radioLabel);
+                inputElement.appendChild(radioDiv);
+              });
+            }
+            break;
+          default:
+            inputElement = document.createElement('input');
+            inputElement.type = 'text';
+            inputElement.id = field.field_name;
+            inputElement.name = field.field_name;
+        }
+        
+        // 必須属性を設定
+        if (field.required && inputElement.tagName !== 'DIV') {
+          inputElement.required = true;
+        }
+        
+        fieldDiv.appendChild(inputElement);
+        form.appendChild(fieldDiv);
+      });
+      
+      // 送信ボタンを追加
+      const submitBtn = document.createElement('button');
+      submitBtn.type = 'submit';
+      submitBtn.textContent = '送信';
+      submitBtn.className = 'submit-btn';
+      form.appendChild(submitBtn);
+      
+      // フォーム送信イベントのリスナー
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        alert('フォームが送信されました（テストモード）');
+        
+        // 実際のAPIと連携する場合は以下のようにデータを送信
+        /*
+        const formData = new FormData(e.target);
+        const formDataObj = {};
+        
+        for (const [key, value] of formData.entries()) {
+          formDataObj[key] = value;
+        }
+        
+        const gasApiUrl = document.getElementById('gasApiUrl').value;
+        
+        if (gasApiUrl) {
+          fetch(gasApiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formDataObj)
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              alert('インシデントが正常に報告されました');
+              form.reset();
+            } else {
+              alert('エラーが発生しました: ' + data.message);
+            }
+          })
+          .catch(error => {
+            console.error('送信エラー:', error);
+            alert('送信中にエラーが発生しました');
+          });
+        }
+        */
+      });
+      
+      formContainer.appendChild(form);
+    }
+    
+    // フィールドリストを表示する関数
+    function displayFieldList(fieldNameJson) {
+      const fieldList = document.getElementById('fieldList');
+      fieldList.innerHTML = '<h3>検出されたフィールド</h3>';
+      
+      // フィールドを表示順でソート
+      const sortedFields = Object.values(fieldNameJson).sort((a, b) => 
+        (a.display_order || 999) - (b.display_order || 999)
+      );
+      
+      if (sortedFields.length === 0) {
+        fieldList.innerHTML += '<p>フィールドが見つかりませんでした。</p>';
+        return;
+      }
+      
+      sortedFields.forEach(field => {
+        const fieldItem = document.createElement('div');
+        fieldItem.className = 'field-item';
+        
+        // 必須マークを追加
+        const requiredMark = field.required ? '<span style="color: red;"> *</span>' : '';
+        
+        // フィールドタイプに応じたアイコンを追加
+        let typeIcon = '';
+        switch(field.field_type) {
+          case 'text':
+            typeIcon = '📝';
+            break;
+          case 'textarea':
+            typeIcon = '📄';
+            break;
+          case 'select':
+            typeIcon = '📋';
+            break;
+          case 'radio':
+            typeIcon = '⚪';
+            break;
+          case 'checkbox':
+            typeIcon = '✅';
+            break;
+          default:
+            typeIcon = '🔹';
+        }
+        
+        fieldItem.innerHTML = `
+          <h4>${typeIcon} ${field.field_label}${requiredMark} (${field.field_name})</h4>
+          <p>タイプ: ${field.field_type}</p>
+          <p>表示順: ${field.display_order}</p>
+          ${field.placeholder ? `<p>プレースホルダー: ${field.placeholder}</p>` : ''}
+          ${field.options ? `<p>選択肢: ${JSON.stringify(field.options)}</p>` : ''}
+          <p>カテゴリー数: ${field.categories.length}</p>
+        `;
+        
+        fieldList.appendChild(fieldItem);
+      });
+    }
+    
+    // CSVデータを処理する関数
+    function processCsvData(csvContent) {
+      try {
+        // CSVをパース
+        const parsedData = parseCSV(csvContent);
+        
+        // field_nameごとにJSONを生成
+        const fieldNameJson = generateFieldNameJson(parsedData);
+        
+        // 結果を出力
+        document.getElementById('output').textContent = JSON.stringify(fieldNameJson, null, 2);
+        
+        // フィールドリストを生成
+        displayFieldList(fieldNameJson);
+        
+        // ダウンロードボタンを有効化
+        document.getElementById('downloadBtn').disabled = false;
+        document.getElementById('downloadBtn').onclick = function() {
+          downloadJson(fieldNameJson, 'incident_fields.json');
+        };
+        
+        return fieldNameJson;
+      } catch (error) {
+        document.getElementById('output').textContent = 'エラー: ' + error.message;
+        console.error('処理エラー:', error);
+        return null;
+      }
+    }
+    
+    // DOMが読み込まれたら実行
+    document.addEventListener('DOMContentLoaded', function() {
+      // 要素の参照を取得
+      const fileInput = document.getElementById('csvFile');
+      const convertBtn = document.getElementById('convertBtn');
+      const downloadBtn = document.getElementById('downloadBtn');
+      const fetchFromGASBtn = document.getElementById('fetchFromGAS');
+      const generateFormBtn = document.getElementById('generateForm');
+      const outputArea = document.getElementById('output');
+      const tabs = document.querySelectorAll('.tab');
+      
+      // タブ切り替え
+      tabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+          // アクティブなタブとコンテンツをリセット
+          document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+          document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+          
+          // クリックされたタブをアクティブに
+          this.classList.add('active');
+          
+          // 対応するコンテンツを表示
+          const tabId = this.getAttribute('data-tab');
+          document.getElementById(tabId + '-tab').classList.add('active');
+        });
+      });
+      
+      // 変換ボタンのクリックイベント
+      convertBtn.addEventListener('click', function() {
+        if (fileInput.files.length === 0) {
+          alert('CSVファイルを選択してください');
+          return;
+        }
+        
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+          const csvContent = e.target.result;
+          processCsvData(csvContent);
+        };
+        
+        reader.readAsText(file);
+      });
+      
+      // ファイル選択時のイベント
+      fileInput.addEventListener('change', function() {
+        // ファイルが選択されたらボタンを有効化
+        convertBtn.disabled = false;
+        
+        // 自動的に変換を開始
+        if (this.files.length > 0) {
+          convertBtn.click();
+        }
+      });
+      
+      // GAS APIからデータを取得するボタンのイベントリスナー
+      fetchFromGASBtn.addEventListener('click', async function() {
+        const loadingMsg = document.createElement('p');
+        loadingMsg.textContent = 'スプレッドシートからデータを取得中...';
+        loadingMsg.id = 'loading-message';
+        
+        const loadingIcon = document.createElement('span');
+        loadingIcon.className = 'loading';
+        loadingMsg.appendChild(loadingIcon);
+        
+        outputArea.textContent = '';
+        outputArea.appendChild(loadingMsg);
+        
+        const data = await fetchDataFromGAS();
+        
+        if (data) {
+          // 結果を出力
+          outputArea.textContent = JSON.stringify(data, null, 2);
+          
+          // フィールドリストを生成
+          displayFieldList(data);
+          
+          // ダウンロードボタンを有効化
+          downloadBtn.disabled = false;
+          downloadBtn.onclick = function() {
+            downloadJson(data, 'incident_fields.json');
+          };
+        } else {
+          outputArea.textContent = 'データの取得に失敗しました。';
+        }
+      });
+      
+      // フォーム生成ボタンのイベントリスナー
+      generateFormBtn.addEventListener('click', function() {
+        try {
+          const jsonText = outputArea.textContent;
+          if (!jsonText || jsonText.trim() === '' || jsonText.includes('ここにJSONが表示されます')) {
+            alert('先にCSVファイルを変換するか、スプレッドシートからデータを取得してください。');
+            return;
+          }
+          
+          const jsonData = JSON.parse(jsonText);
+          generateIncidentForm(jsonData);
+          
+          // フォームタブに切り替え
+          document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+          document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+          
+          document.querySelector('.tab[data-tab="form"]').classList.add('active');
+          document.getElementById('form-tab').classList.add('active');
+          
+        } catch (error) {
+          alert('JSONの解析に失敗しました: ' + error.message);
+          console.error('JSONの解析エラー:', error);
+        }
+      });
+    });
+
+    function doGet(e) {
+      try {
+        const jsonData = spreadsheetToFieldNameJson();
+        
+        // CORSヘッダーを設定
+        return ContentService
+          .createTextOutput(JSON.stringify(jsonData))
+          .setMimeType(ContentService.MimeType.JSON)
+          .addHeader('Access-Control-Allow-Origin', '*');
+      } catch (error) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ error: error.message }))
+          .setMimeType(ContentService.MimeType.JSON)
+          .addHeader('Access-Control-Allow-Origin', '*');
+      }
+    }
+
+  </script>
+</body>
+</html>
