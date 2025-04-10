@@ -907,22 +907,7 @@
       });
     });
 
-    function doGet(e) {
-      try {
-        const jsonData = spreadsheetToFieldNameJson();
-        
-        // CORSヘッダーを設定
-        return ContentService
-          .createTextOutput(JSON.stringify(jsonData))
-          .setMimeType(ContentService.MimeType.JSON)
-          .addHeader('Access-Control-Allow-Origin', '*');
-      } catch (error) {
-        return ContentService
-          .createTextOutput(JSON.stringify({ error: error.message }))
-          .setMimeType(ContentService.MimeType.JSON)
-          .addHeader('Access-Control-Allow-Origin', '*');
-      }
-    }
+    
 
   </script>
 </body>
