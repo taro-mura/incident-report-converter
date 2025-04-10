@@ -531,7 +531,12 @@
       }
       
       try {
-        const response = await fetch(gasApiUrl);
+        const response = await fetch(gasApiUrl, {
+          method: 'GET',
+          mode: 'cors', // CORSモードを明示的に指定
+          credentials: 'omit' // クレデンシャルを含めない
+        });
+        
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -908,7 +913,6 @@
     });
 
     
-
   </script>
 </body>
 </html>
